@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <node name="publisher" pkg="custom_msg_py" type="publisher.py" output="screen"/>
+    <node name="subscriber" pkg="custom_msg_py" type="subscriber.py" output="screen"/>
+</launch>

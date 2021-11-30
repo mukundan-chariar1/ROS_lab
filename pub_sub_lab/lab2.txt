@@ -1,0 +1,152 @@
+AIM:- to write a simple publisher and subscriber to transmit custom data types using rospy.
+
+PROCEDURE:-
+1) make a new package using thr following command:
+catkin_create_package foobar
+
+2) create a msg directory in the package mentioned above, using the command:
+mkdir msg
+
+3) use the commands below to create three .msg files that cater to our custom message types
+echo "int64 data" > count.msg
+echo "time status" > status.msg
+echo "int32 rows \nint32 columns \nint32[] matrix" > matrix.msg
+
+you can use rosmsg show <foobar> <foobar.msg> to show the message type and data once the package is built
+
+4) edit the package.xml file found in the foobar package to include the lines
+<build_depends>message_generation</build_depends>
+<exec_depends>message_runtime</exec_depends>
+
+5) edit the CMakeLists.txt file found in the package as follows
+-add message_generation to find_package(catkin REQUIRED COMPONENTS
+-uncomment "add_message_files(
+				FILES"
+and add the three .msg files to the list
+-uncomment "generate_messages(
+				DEPENDENCIES
+				)
+and add std_msgs to the list
+-uncomment "catkin_package(
+				DEPENDENCIES"
+and add message_runtime to the list
+
+6) create a directory called scripts using the following command:
+mkdir scripts
+- change directory to scripts using command:
+cd scripts
+- create a publisher.py file using command:
+touch publisher.py
+- create a subscriber.py file using the same command
+
+7) fill in the code for publisher and subscriber
+
+8) make the publisher.py and subscriber.py files executable by using the command:
+chmod +x <foobar>
+
+9) go back to the workspace you started in and build the package using:
+catkin_make
+
+10) start ros master in a tab in the terminal
+
+11) run the publisher and subscriber in a new tab in the terminal using:
+rosrun <foobar> publisher.py
+rosrun <foobar> subscriber.py
+
+PROGRAMS:-
+
+publisher.py
+
+#!/usr/bin/env python
+import rospy
+from pub_sub_lab.msg import status,count,matrix
+
+M = [[1,2,3], [4,5,8], [7,8,9]]
+
+def main():
+    rospy.init_node('publisher')
+    time_pub = rospy.Publisher('/status', status, queue_size=1)
+    count_pub = rospy.Publisher('/counter', count, queue_size=1)
+    matrix_pub = rospy.Publisher('/matrix', matrix, queue_size=1)
+
+    time_msg = status()
+    count_msg = count()
+    count_msg.count = 0
+    matrix_msg = matrix()
+    matrix_msg.rows = len(M)
+    matrix_msg.columns = len(M[0])
+
+    for i in M:
+        for j in i:
+            matrix_msg.matrix.append(int(j))
+
+    rospy.loginfo('sending messages')
+    rate = rospy.Rate(10)
+    while not rospy.is_shutdown():
+        time_msg.status = rospy.Time.now()
+        time_pub.publish(time_msg)
+        count_pub.publish(count_msg)
+        count_msg.count += 1
+        matrix_pub.publish(matrix_msg)
+        rate.sleep()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
+
+subscriber.py
+
+#!/usr/bin/env python
+from __future__ import print_function
+import rospy
+from pub_sub_lab.msg import status,count,matrix
+
+def count_callback(msg):
+    global ctr
+    ctr = msg.count
+
+def time_callback(msg):
+    global tm
+    tm = msg.status
+
+def matrix_callback(msg):
+    global M,r,c, M_st
+    M = []
+    M_st = ''
+    temp = []
+    r = msg.rows
+    c = msg.columns
+    j = 0
+    for i in msg.matrix:
+        temp.append(i)
+        M_st = M_st + str(i) + " "
+        j += 1
+        if j == c:
+            M.append(temp)
+            M_st += "\n"
+            j = 0
+            temp = []
+
+def main():
+    rospy.init_node('subscriber')
+    rospy.Subscriber('/status', status, time_callback)
+    rospy.Subscriber('/counter', count, count_callback)
+    rospy.Subscriber('/matrix', matrix, matrix_callback)
+    while not 'M' in globals() or not 'ctr' in globals() or not 'tm' in globals():
+        rospy.loginfo('waiting for publisher')
+
+    while True:
+        message = "\n---messages recieved---\ntime = "+str(tm)+"\ncounter = "+str(ctr)+"\nmatrix = \n"+M_st+"\n"
+        rospy.loginfo(message)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        sys.exit(1)
+        pass
+
+
+OUTCOME:-
